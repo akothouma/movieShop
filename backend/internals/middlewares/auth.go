@@ -45,3 +45,21 @@ func (dep *dependencies.dependencies) AuthMiddleWare(next http.Handler) http.Han
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+func (dep *dependencies.Dependencies) CreateSession(w http.ResponseWriter, r *http.Request, userID string) {
+	ctx := r.Context()
+
+
+	sessionID, err := dep.DB.CreateSession(userID)
+	if err != nil {
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	
+	err = dep.Redis.Set(ctx, "session:"+sessionID, userID, 24*time.Hour).Err()
+	if err != nil {
+		dep.Logger.Error("failed to cache session in Redis", "error", err)
+		
+	}
+	dep.setSessionCookie(w, sessionID)
+}
