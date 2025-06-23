@@ -63,3 +63,15 @@ func (dep *dependencies.Dependencies) CreateSession(w http.ResponseWriter, r *ht
 	}
 	dep.setSessionCookie(w, sessionID)
 }
+
+func (dep *dependencies.Dependencies) setSessionCookie(w http.ResponseWriter, sessionID string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    sessionID,
+		Path:     "/",
+		HttpOnly: true,
+		// Secure:   true, 
+		SameSite: http.SameSiteLaxMode, 
+		Expires:  time.Now().Add(24 * time.Hour),
+	})
+}
