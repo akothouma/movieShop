@@ -75,3 +75,15 @@ func (dep *dependencies.Dependencies) setSessionCookie(w http.ResponseWriter, se
 		Expires:  time.Now().Add(24 * time.Hour),
 	})
 }
+
+
+func (dep *dependencies.Dependencies) clearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
