@@ -40,6 +40,8 @@ func main() {
 		"/recommendation":      handlers.RecommendationHandler(dep),
 		"/addToWatchlist":      handlers.AddToWatchlist(dep),
 		"/removeFromWatchlist": handlers.RemoveFromWatchlist(dep),
+		"/search": handlers.SearchHandler(dep),
+
 	}
 
 	for path, handler := range protectedRoutes {
