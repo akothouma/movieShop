@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Grid - Your Personal Cinema</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <header class="header">
+        <h1>🎬 CineGrid</h1>
+        <button class="watchlist-btn" onclick="openWatchlist()">
+            My Watchlist
+            <span class="watchlist-count" id="watchlistCount">0</span>
+        </button>
+    </header>
+
+    <div class="container">
+        <div class="movies-grid" id="moviesGrid">
+            <!-- Movies will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Movie Details Modal -->
+    <div class="modal" id="movieModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <img class="modal-poster" id="modalPoster" src="/placeholder.svg" alt="">
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h2 class="modal-title" id="modalTitle"></h2>
+                <p class="modal-date" id="modalDate"></p>
+                <p class="modal-description" id="modalDescription"></p>
+                <button class="add-to-watchlist" id="addToWatchlistBtn" onclick="addToWatchlist()">
+                    Add to Watchlist
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Watchlist Modal -->
+    <div class="watchlist-modal" id="watchlistModal">
+        <div class="watchlist-content">
+            <div class="watchlist-header">
+                <h2 class="watchlist-title">My Watchlist</h2>
+                <button class="modal-close" onclick="closeWatchlist()">&times;</button>
+            </div>
+            <div id="watchlistItems">
+                <!-- Watchlist items will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
