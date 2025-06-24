@@ -16,7 +16,8 @@ type MoviesResponse struct {
 	TotalResults int             `json:"total_results"`
 }
 
-func BasicMovie() ([]models.Movies, error) {
+// FetchMoviesPage fetches a specific page of movies
+func FetchMoviesPage(page int) (*MoviesResponse, error) {
 	err := godotenv.Load()
 	if err != nil {
 		return nil, fmt.Errorf("error loading .env file: %w", err)
@@ -27,7 +28,7 @@ func BasicMovie() ([]models.Movies, error) {
 		return nil, fmt.Errorf("TMDB_API_KEY not found in environment variables")
 	}
 
-	url := "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc"
+	url := fmt.Sprintf("https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=en-US&page=%d&sort_by=popularity.desc", page)
 
 	headers := map[string]string{
 		"accept":        "application/json",
@@ -44,7 +45,16 @@ func BasicMovie() ([]models.Movies, error) {
 		return nil, fmt.Errorf("error decoding response: %w", err)
 	}
 
-	return moviesResponse.Results, nil
+	return &moviesResponse, nil
+}
+
+// BasicMovie returns the first page of movies (for backward compatibility)
+func BasicMovie() ([]models.Movies, error) {
+	response, err := FetchMoviesPage(1)
+	if err != nil {
+		return nil, err
+	}
+	return response.Results, nil
 }
 
 type OMDBResponse struct {
