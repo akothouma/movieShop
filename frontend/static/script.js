@@ -59,16 +59,60 @@ async function fetchMoviesPage(page) {
 async function loadMoreMovies() {
   if (isLoading || currentPage >= totalPages) return
   
+  isLoading = true
   const loadMoreBtn = document.getElementById('loadMoreBtn')
-  if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...'
   
-  const result = await fetchMoviesPage(currentPage + 1)
-  movies = [...movies, ...result.movies]
+  if (loadMoreBtn) {
+    loadMoreBtn.innerHTML = `
+      <span class="btn-content">
+        <span>Loading Movies</span>
+        <span class="loading-dots">
+          <span class="loading-dot"></span>
+          <span class="loading-dot"></span>
+          <span class="loading-dot"></span>
+        </span>
+      </span>
+    `
+    loadMoreBtn.disabled = true
+  }
   
-  renderMovies(false) // Append mode
-  updatePaginationUI()
-  
-  if (loadMoreBtn) loadMoreBtn.textContent = 'Load More'
+  try {
+    const result = await fetchMoviesPage(currentPage + 1)
+    movies = [...movies, ...result.movies]
+    
+    // Add a slight delay for better UX
+    setTimeout(() => {
+      renderMovies(false) // Append mode
+      updatePaginationUI()
+      isLoading = false
+      
+      // Smooth scroll to show new content
+      const lastOldMovieIndex = (currentPage - 1) * 20
+      const firstNewMovie = document.querySelectorAll('.movie-card')[lastOldMovieIndex]
+      if (firstNewMovie) {
+        window.scrollTo({
+          top: firstNewMovie.offsetTop - 120,
+          behavior: 'smooth'
+        })
+      }
+    }, 800)
+  } catch (error) {
+    console.error('Error loading more movies:', error)
+    isLoading = false
+    
+    if (loadMoreBtn) {
+      loadMoreBtn.innerHTML = `
+        <span class="btn-content">
+          <span>Error Loading Movies</span>
+          <span class="btn-icon">⚠️</span>
+        </span>
+      `
+      
+      setTimeout(() => {
+        updatePaginationUI()
+      }, 2000)
+    }
+  }
 }
 
 // Show error message to user
@@ -155,23 +199,47 @@ function renderMovies(replace = true) {
   }
 }
 
-// Update pagination UI
+// Update pagination UI with enhanced load more button
 function updatePaginationUI() {
   const container = document.getElementById('paginationContainer')
   if (!container) return
   
+  const percentLoaded = Math.min(100, (currentPage / totalPages) * 100).toFixed(0)
+  
   container.innerHTML = `
+    <div class="pagination-progress">
+      <div class="pagination-progress-bar" style="width: ${percentLoaded}%"></div>
+    </div>
     <div class="pagination-info">
-      Showing ${movies.length} of ${totalPages * 20} movies (Page ${currentPage} of ${totalPages})
+      Showing ${movies.length} of approximately ${totalPages * 20} movies (${percentLoaded}% loaded)
     </div>
     <button id="loadMoreBtn" class="load-more-btn" ${currentPage >= totalPages ? 'disabled' : ''}>
-      ${currentPage >= totalPages ? 'No More Movies' : 'Load More'}
+      <span class="btn-content">
+        ${currentPage >= totalPages ? 
+          '<span>All Movies Loaded</span> <span class="btn-icon">✓</span>' : 
+          '<span>Discover More Movies</span> <span class="btn-icon">↓</span>'}
+      </span>
     </button>
   `
   
   const loadMoreBtn = document.getElementById('loadMoreBtn')
   if (loadMoreBtn && currentPage < totalPages) {
     loadMoreBtn.addEventListener('click', loadMoreMovies)
+    
+    // Add hover animation for the icon
+    loadMoreBtn.addEventListener('mouseenter', () => {
+      const icon = loadMoreBtn.querySelector('.btn-icon')
+      if (icon) {
+        icon.style.animation = 'bounce 0.5s ease infinite'
+      }
+    })
+    
+    loadMoreBtn.addEventListener('mouseleave', () => {
+      const icon = loadMoreBtn.querySelector('.btn-icon')
+      if (icon) {
+        icon.style.animation = ''
+      }
+    })
   }
 }
 
