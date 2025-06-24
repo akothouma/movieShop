@@ -3,10 +3,11 @@ package fetch
 import (
 	"encoding/json"
 	"fmt"
-	"movieshop/backend/internals/models"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
+	"movieshop/backend/internals/models"
 )
 
 type MoviesResponse struct {
@@ -147,4 +148,40 @@ func GetMovieByID(movieID int) (*models.Movies, error) {
 	}
 
 	return &movie, nil
+}
+
+// SearchMovies searches for movies by query
+func SearchMovies(query string, page int) (*MoviesResponse, error) {
+	err := godotenv.Load()
+	if err != nil {
+		return nil, fmt.Errorf("error loading .env file: %w", err)
+	}
+
+	apiKey := os.Getenv("TMDB_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("TMDB_API_KEY not found in environment variables")
+	}
+
+	// URL encode the query
+	encodedQuery := url.QueryEscape(query)
+	
+	url := fmt.Sprintf("https://api.themoviedb.org/3/search/movie?query=%s&include_adult=false&language=en-US&page=%d", 
+		encodedQuery, page)
+
+	headers := map[string]string{
+		"accept":        "application/json",
+		"Authorization": "Bearer " + apiKey,
+	}
+
+	body, err := Fetch(url, headers)
+	if err != nil {
+		return nil, fmt.Errorf("error searching movies: %w", err)
+	}
+
+	var moviesResponse MoviesResponse
+	if err := json.Unmarshal(body, &moviesResponse); err != nil {
+		return nil, fmt.Errorf("error decoding response: %w", err)
+	}
+
+	return &moviesResponse, nil
 }
