@@ -5,15 +5,17 @@ import (
 	"fmt"
 	handlers "movieshop/backend/Handlers"
 	dependencies "movieshop/backend/cmd/web/dependancies"
+	"movieshop/backend/internals/database"
 	"net/http"
 )
 
 func main() {
-	db, err := InitDB()
+	db, err := database.InitDB("./movieshop.db")
 	if err != nil {
 		fmt.Errorf("Failed to initialize database")
 		return
 	}
+    defer database.CloseDB(db)
 
 	cache, err := InitCache()
 	if err != nil {
@@ -29,7 +31,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Public routes
-	mux.Handle("/",middlewares.RateLimitter(handlers.MovieListHandler(dep)))
+	mux.Handle("/", middlewares.RateLimitter(handlers.MovieListHandler(dep)))
 	mux.Handle("/trending", middlewares.RateLimitter(handlers.TrendingListHandler(dep)))
 	mux.Handle("/filter", middlewares.RateLimitter(handlers.FilterListHandler(dep)))
 
@@ -40,14 +42,12 @@ func main() {
 		"/recommendation":      handlers.RecommendationHandler(dep),
 		"/addToWatchlist":      handlers.AddToWatchlist(dep),
 		"/removeFromWatchlist": handlers.RemoveFromWatchlist(dep),
-		"/search": handlers.SearchHandler(dep),
-
+		"/search":              handlers.SearchHandler(dep),
 	}
 
 	for path, handler := range protectedRoutes {
 		mux.Handle(path, middlewares.ChainMiddlewares(handler))
 	}
-
 
 	http.ListenAndServe(":8000", mux)
 }
