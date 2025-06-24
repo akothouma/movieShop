@@ -7,6 +7,8 @@ let movies = []
 let currentPage = 1
 let totalPages = 1
 let isLoading = false
+let searchQuery = ''
+let isSearchMode = false
 
 let watchlist = JSON.parse(localStorage.getItem("watchlist")) || []
 let currentMovie = null
@@ -129,13 +131,141 @@ function showError(message) {
   `
 }
 
+// Search functionality
+async function searchMovies(query) {
+  if (!query.trim()) {
+    clearSearch()
+    return
+  }
+  
+  searchQuery = query.trim()
+  isSearchMode = true
+  
+  // Show loading state
+  const grid = document.getElementById("moviesGrid")
+  grid.innerHTML = `
+    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+      <div class="loading-animation">
+        <div></div><div></div><div></div><div></div>
+      </div>
+      <h3 style="color: white; margin-top: 1rem;">Searching for "${searchQuery}"...</h3>
+    </div>
+  `
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/search?query=${encodeURIComponent(searchQuery)}`)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    console.log('Search API response:', data)
+    
+    // Transform API data to match frontend format
+    const searchResults = data.results.map(movie => ({
+      id: movie.id,
+      title: movie.title,
+      date: movie.release_date ? movie.release_date.split('-')[0] : 'Unknown',
+      poster: movie.poster_path ? `${TMDB_IMAGE_BASE_URL}${movie.poster_path}` : '/placeholder.svg?height=400&width=280',
+      description: movie.overview || 'No description available.',
+      vote_average: movie.vote_average || 0
+    }))
+    
+    // Update movies array with search results
+    movies = searchResults
+    currentPage = data.page || 1
+    totalPages = data.total_pages || 1
+    
+    // Render search results
+    renderSearchResults()
+  } catch (error) {
+    console.error('Error searching movies:', error)
+    showError(`Failed to search for "${searchQuery}". Please try again later.`)
+  }
+}
+
+// Render search results
+function renderSearchResults() {
+  const grid = document.getElementById("moviesGrid")
+  
+  if (movies.length === 0) {
+    grid.innerHTML = `
+      <div class="search-results-info">
+        <h2>No results found for "${searchQuery}"</h2>
+        <p>Try a different search term or browse our movie collection.</p>
+        <button class="clear-search-btn" onclick="clearSearch()">Clear Search</button>
+      </div>
+    `
+    
+    // Hide pagination
+    const paginationContainer = document.getElementById('paginationContainer')
+    if (paginationContainer) {
+      paginationContainer.style.display = 'none'
+    }
+    
+    return
+  }
+  
+  // Add search results info
+  grid.innerHTML = `
+    <div class="search-results-info">
+      <h2>Search Results for "${searchQuery}"</h2>
+      <p>Found ${movies.length} movies</p>
+      <button class="clear-search-btn" onclick="clearSearch()">Clear Search</button>
+    </div>
+  `
+  
+  // Add movie cards
+  const moviesHTML = movies
+    .map(
+      (movie) => `
+        <div class="movie-card" onclick="openMovieDetails(${movie.id})">
+            <img class="movie-poster" src="${movie.poster}" alt="${movie.title}"
+                 onerror="this.src='/placeholder.svg?height=400&width=280'">
+            <div class="movie-info">
+                <h3 class="movie-title">${movie.title}</h3>
+                <p class="movie-date">${movie.date}</p>
+                ${movie.vote_average ? `<div class="movie-rating">⭐ ${movie.vote_average.toFixed(1)}</div>` : ''}
+            </div>
+        </div>
+    `,
+    )
+    .join("")
+  
+  grid.innerHTML += moviesHTML
+  
+  // Hide pagination in search mode
+  const paginationContainer = document.getElementById('paginationContainer')
+  if (paginationContainer) {
+    paginationContainer.style.display = 'none'
+  }
+}
+
+// Clear search and return to normal view
+function clearSearch() {
+  searchQuery = ''
+  isSearchMode = false
+  
+  // Reset and reload movies
+  currentPage = 1
+  init()
+  
+  // Clear search input
+  document.getElementById('searchInput').value = ''
+}
+
 // Initialize the app
 async function init() {
   // Show loading state
   const grid = document.getElementById("moviesGrid")
   grid.innerHTML = `
-    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
-      <h3 style="color: #666;">🎬 Loading movies...</h3>
+    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+      <div class="loading-animation">
+        <div></div><div></div><div></div><div></div>
+      </div>
+      <h3 style="color: white; margin-top: 1rem;">Loading the best movies for you...</h3>
     </div>
   `
 
@@ -147,6 +277,36 @@ async function init() {
   renderMovies(true) // Replace mode
   updatePaginationUI()
   updateWatchlistCount()
+  
+  // Setup search functionality
+  setupSearch()
+}
+
+// Setup search event listeners
+function setupSearch() {
+  const searchInput = document.getElementById('searchInput')
+  const searchButton = document.getElementById('searchButton')
+  
+  // Search on button click
+  searchButton.addEventListener('click', () => {
+    const query = searchInput.value
+    searchMovies(query)
+  })
+  
+  // Search on Enter key
+  searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const query = searchInput.value
+      searchMovies(query)
+    }
+  })
+  
+  // Clear search when input is cleared
+  searchInput.addEventListener('input', () => {
+    if (searchInput.value === '' && isSearchMode) {
+      clearSearch()
+    }
+  })
 }
 
 // Render movies grid
