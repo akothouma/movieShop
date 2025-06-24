@@ -4,21 +4,35 @@ const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500'
 
 // Global variables
 let movies = []
+let currentPage = 1
+let totalPages = 1
+let isLoading = false
 
 let watchlist = JSON.parse(localStorage.getItem("watchlist")) || []
 let currentMovie = null
 
-// Fetch movies from API
-async function fetchMovies() {
+// Fetch movies from API with pagination
+async function fetchMoviesPage(page) {
   try {
-    const response = await fetch(`${API_BASE_URL}/`)
+    console.log(`Fetching movies page ${page}...`)
+    isLoading = true
+    
+    const response = await fetch(`${API_BASE_URL}/movies?page=${page}`)
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`HTTP error! status: ${response.status}, message: ${errorText}`)
       throw new Error(`HTTP error! status: ${response.status}`)
     }
+    
     const data = await response.json()
-
+    console.log('API response:', data)
+    
+    // Update pagination info
+    currentPage = data.page
+    totalPages = data.total_pages
+    
     // Transform API data to match frontend format
-    movies = data.map(movie => ({
+    const newMovies = data.results.map(movie => ({
       id: movie.id,
       title: movie.title,
       date: movie.release_date ? movie.release_date.split('-')[0] : 'Unknown',
@@ -26,15 +40,35 @@ async function fetchMovies() {
       description: movie.overview || 'No description available.',
       vote_average: movie.vote_average || 0
     }))
-
-    return movies
+    
+    isLoading = false
+    return {
+      movies: newMovies,
+      currentPage,
+      totalPages
+    }
   } catch (error) {
     console.error('Error fetching movies:', error)
-    // Fallback to empty array if API fails
-    movies = []
+    isLoading = false
     showError('Failed to load movies. Please try again later.')
-    return movies
+    return { movies: [], currentPage: 1, totalPages: 1 }
   }
+}
+
+// Load more movies (next page)
+async function loadMoreMovies() {
+  if (isLoading || currentPage >= totalPages) return
+  
+  const loadMoreBtn = document.getElementById('loadMoreBtn')
+  if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...'
+  
+  const result = await fetchMoviesPage(currentPage + 1)
+  movies = [...movies, ...result.movies]
+  
+  renderMovies(false) // Append mode
+  updatePaginationUI()
+  
+  if (loadMoreBtn) loadMoreBtn.textContent = 'Load More'
 }
 
 // Show error message to user
@@ -61,16 +95,18 @@ async function init() {
     </div>
   `
 
-  // Fetch movies from API
-  await fetchMovies()
-
+  // Fetch first page of movies
+  const result = await fetchMoviesPage(1)
+  movies = result.movies
+  
   // Render the movies
-  renderMovies()
+  renderMovies(true) // Replace mode
+  updatePaginationUI()
   updateWatchlistCount()
 }
 
 // Render movies grid
-function renderMovies() {
+function renderMovies(replace = true) {
   const grid = document.getElementById("moviesGrid")
 
   if (movies.length === 0) {
@@ -83,7 +119,7 @@ function renderMovies() {
     return
   }
 
-  grid.innerHTML = movies
+  const moviesHTML = movies
     .map(
       (movie) => `
         <div class="movie-card" onclick="openMovieDetails(${movie.id})">
@@ -98,6 +134,45 @@ function renderMovies() {
     `,
     )
     .join("")
+  
+  if (replace) {
+    grid.innerHTML = moviesHTML
+  } else {
+    // Append new movies to existing grid
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = moviesHTML
+    while (tempDiv.firstChild) {
+      grid.appendChild(tempDiv.firstChild)
+    }
+  }
+  
+  // Add pagination controls after the grid
+  if (replace) {
+    const paginationContainer = document.createElement('div')
+    paginationContainer.id = 'paginationContainer'
+    paginationContainer.className = 'pagination-container'
+    grid.parentNode.insertBefore(paginationContainer, grid.nextSibling)
+  }
+}
+
+// Update pagination UI
+function updatePaginationUI() {
+  const container = document.getElementById('paginationContainer')
+  if (!container) return
+  
+  container.innerHTML = `
+    <div class="pagination-info">
+      Showing ${movies.length} of ${totalPages * 20} movies (Page ${currentPage} of ${totalPages})
+    </div>
+    <button id="loadMoreBtn" class="load-more-btn" ${currentPage >= totalPages ? 'disabled' : ''}>
+      ${currentPage >= totalPages ? 'No More Movies' : 'Load More'}
+    </button>
+  `
+  
+  const loadMoreBtn = document.getElementById('loadMoreBtn')
+  if (loadMoreBtn && currentPage < totalPages) {
+    loadMoreBtn.addEventListener('click', loadMoreMovies)
+  }
 }
 
 // Open movie details modal
